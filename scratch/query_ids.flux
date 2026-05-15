@@ -1,0 +1,5 @@
+from(bucket: "precog")
+    |> range(start: -2h)
+    |> keep(columns: ["device_id", "mac"])
+    |> group()
+    |> distinct(column: "device_id")

@@ -1,0 +1,16 @@
+# PHP / Backend
+config.php
+*.log
+vendor/
+node_modules/
+.env
+
+# Arduino
+build/
+*.hex
+*.elf
+*.bin
+
+# OS
+.DS_Store
+Thumbs.db

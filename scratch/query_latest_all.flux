@@ -1,0 +1,5 @@
+from(bucket: "precog")
+    |> range(start: -24h)
+    |> filter(fn: (r) => r["_field"] == "temperatura")
+    |> group(columns: ["device_id"])
+    |> last()
