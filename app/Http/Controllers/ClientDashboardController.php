@@ -34,14 +34,18 @@ class ClientDashboardController extends Controller
 
         if ($sensors->isNotEmpty()) {
             try {
-                $url = config('influxdb.url');
-                $org = $clientModel->influx_org ?: config('influxdb.org');
-                $bucketRaw = $clientModel->influx_bucket ?: config('influxdb.bucket');
-                $bucket = preg_replace('/[^a-zA-Z0-9_.-]/', '', $bucketRaw);
-                $influxToken = $clientModel->influx_token ?: config('influxdb.token');
+                // Cache client InfluxDB query results for 15 seconds
+                $cacheKey = "client_dashboard_influx_client_" . $clientModel->id;
+                $clientInfluxData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 15, function() use ($clientModel, $sensors) {
+                    $url = config('influxdb.url');
+                    $org = $clientModel->influx_org ?: config('influxdb.org');
+                    $bucketRaw = $clientModel->influx_bucket ?: config('influxdb.bucket');
+                    $bucket = preg_replace('/[^a-zA-Z0-9_.-]/', '', $bucketRaw);
+                    $influxToken = $clientModel->influx_token ?: config('influxdb.token');
 
-                if ($url && $influxToken) {
-                    $sensorMap = $sensors->keyBy(function($s) { return strtolower($s->device_id); });
+                    if (!$url || !$influxToken) {
+                        return [];
+                    }
 
                     $influx = \App\Services\InfluxConnectionHelper::createClient($url, $org, $influxToken);
                     $queryApi = $influx->createQueryApi();
@@ -61,6 +65,7 @@ class ClientDashboardController extends Controller
                     ";
 
                     $tables = $queryApi->query($query);
+                    $results = [];
                     foreach ($tables as $table) {
                         foreach ($table->records as $record) {
                             $device = $record['device_id'] ?? null;
@@ -69,23 +74,34 @@ class ClientDashboardController extends Controller
                             
                             if ($device && $field) {
                                 $deviceLower = strtolower($device);
-                                $sensorModel = $sensorMap->get($deviceLower);
-                                $originalDevice = $sensorModel ? $sensorModel->device_id : $device;
-
-                                if ($sensorModel && $sensorModel->last_status === 'online') {
-                                    if ($field === 'temperatura') $influxData[$originalDevice]['temperature'] = $value;
-                                    if ($field === 'umidade') $influxData[$originalDevice]['humidity'] = $value;
-                                    if ($field === 'uptime') $influxData[$originalDevice]['uptime'] = $value;
-                                    if ($field === 'rssi') $influxData[$originalDevice]['rssi'] = $value;
-                                    
-                                    if (isset($record['mac'])) {
-                                        $influxData[$originalDevice]['mac'] = $record['mac'];
-                                    } elseif (isset($record['mac_address'])) {
-                                        $influxData[$originalDevice]['mac'] = $record['mac_address'];
-                                    }
+                                if (!isset($results[$deviceLower])) {
+                                    $results[$deviceLower] = [];
+                                }
+                                $results[$deviceLower][$field] = $value;
+                                
+                                if (isset($record['mac'])) {
+                                    $results[$deviceLower]['mac'] = $record['mac'];
+                                } elseif (isset($record['mac_address'])) {
+                                    $results[$deviceLower]['mac'] = $record['mac_address'];
                                 }
                             }
                         }
+                    }
+                    return $results;
+                });
+
+                // Map cached metrics dynamically
+                $sensorMap = $sensors->keyBy(function($s) { return strtolower($s->device_id); });
+                foreach ($clientInfluxData as $deviceLower => $metrics) {
+                    $sensorModel = $sensorMap->get($deviceLower);
+                    $originalDevice = $sensorModel ? $sensorModel->device_id : $deviceLower;
+
+                    if ($sensorModel && $sensorModel->last_status === 'online') {
+                        if (isset($metrics['temperatura'])) $influxData[$originalDevice]['temperature'] = $metrics['temperatura'];
+                        if (isset($metrics['umidade'])) $influxData[$originalDevice]['humidity'] = $metrics['umidade'];
+                        if (isset($metrics['uptime'])) $influxData[$originalDevice]['uptime'] = $metrics['uptime'];
+                        if (isset($metrics['rssi'])) $influxData[$originalDevice]['rssi'] = $metrics['rssi'];
+                        if (isset($metrics['mac'])) $influxData[$originalDevice]['mac'] = $metrics['mac'];
                     }
                 }
             } catch (\Exception $e) {
