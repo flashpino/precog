@@ -1,0 +1,37 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-primary: #2563eb;
+    --color-industrial-gray-50: #f8fafc;
+    --color-industrial-gray-100: #f1f5f9;
+    --color-industrial-gray-200: #e2e8f0;
+    --color-industrial-gray-300: #cbd5e1;
+    --color-industrial-gray-400: #94a3b8;
+    --color-industrial-gray-500: #64748b;
+    --color-industrial-gray-600: #475569;
+    --color-industrial-gray-700: #334155;
+    --color-industrial-gray-800: #1e293b;
+    --color-industrial-gray-900: #0f172a;
+    --color-hmi-green: #16a34a;
+    --color-hmi-yellow: #ca8a04;
+    --color-hmi-red: #dc2626;
+    --color-background-light: #f1f5f9;
+
+    --font-display: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+.client-theme {
+    --color-primary: #0052CC;
+    --color-hmi-green: #10b981;
+    --color-hmi-red: #ef4444;
+    --color-hmi-yellow: #f59e0b;
+}
